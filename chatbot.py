@@ -5,8 +5,10 @@ from pymongo import MongoClient
 from groq import Groq
 from invoice_generator import generate_invoice_pdf
 from pathlib import Path
+from dotenv import load_dotenv
 
 # ========== Environment Variables ==========
+load_dotenv() 
 GROQ_API_KEY = os.getenv("api_key")
 mongo_uri =os.getenv("mongo_uri")
 # ========== MongoDB Setup ==========
