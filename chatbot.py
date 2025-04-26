@@ -8,7 +8,7 @@ from pathlib import Path
 
 # ========== Environment Variables ==========
 GROQ_API_KEY = os.getenv("api_key")
-mongo_uri = os.getenv("mongo_uri")
+mongo_uri =os.getenv("mongo_uri")
 # ========== MongoDB Setup ==========
 client = MongoClient(mongo_uri)
 db = client['Invoice_Generator']
@@ -51,7 +51,6 @@ Instructions:
   "quantities": "2, 3",
   "unit_type": "strip"
 }}
-
 Respond ONLY with JSON.
 User Input:
 \"\"\"{user_text}\"\"\"
@@ -107,6 +106,44 @@ def create_invoice(customer_data, product_data_list, quantities_raw, unit_type):
     pdf_path = generate_invoice_pdf(customer_data, items)
     return pdf_path, customer_data, items
 
+
+
+# ========== Main Chat Input ==========
+user_input = st.chat_input("Type something...")
+
+if user_input and not st.session_state.pending_customers:
+    st.session_state.chat_history.append(("user", user_input))
+    st.session_state.last_user_input = user_input
+
+    with st.spinner("🤖 Thinking..."):
+        try:
+            extracted = extract_invoice_data(user_input)
+
+            if "reply" in extracted:
+                bot_response = extracted["reply"]
+
+            else:
+                customer_name = extracted.get("customer_name")
+                product_names = extracted.get("product_names")
+                quantities = extracted.get("quantities")
+                unit_type = extracted.get("unit_type", "unit")
+
+                customer_data, product_data_list = fetch_data_from_mongo(customer_name, product_names)
+
+                if isinstance(customer_data, dict) and "match_customer_names" in customer_data:
+                    bot_response = "👥 I found multiple matching customer names. Please select the correct one."
+                    st.session_state.pending_customers = customer_data["match_customer_names"]
+                elif customer_data is None:
+                    bot_response = "⚠️ Customer not found in the database. Please check the name or add the customer first."
+                else:
+                    pdf_path, _, items = create_invoice(customer_data, product_data_list, quantities, unit_type)
+                    item_list = "\n".join([f"{i['name']} x{i['qty']} @ ₹{i['rate']} = ₹{i['total']}" for i in items])
+                    bot_response = f"🧾 *Invoice for {customer_data['Name']}*:\n\n{item_list}\n\n📄 [Download PDF]({pdf_path})"
+
+        except Exception as e:
+            bot_response = f"❌ Error: {str(e)}"
+
+    st.session_state.chat_history.append(("bot", bot_response))
 # ========== Handle Pending Customer Choice ==========
 if st.session_state.pending_customers:
     st.info("Multiple customers found. Please choose one.")
@@ -132,44 +169,6 @@ if st.session_state.pending_customers:
 
         st.session_state.pending_customers = None
         st.session_state.last_user_input = ""
-
-# ========== Main Chat Input ==========
-user_input = st.chat_input("Type something...")
-
-if user_input and not st.session_state.pending_customers:
-    st.session_state.chat_history.append(("user", user_input))
-    st.session_state.last_user_input = user_input
-
-    with st.spinner("🤖 Thinking..."):
-        try:
-            extracted = extract_invoice_data(user_input)
-
-            if "reply" in extracted:
-                bot_response = extracted["reply"]
-
-            else:
-                customer_name = extracted.get("customer_name")
-                product_names = extracted.get("product_names")
-                quantities = extracted.get("quantities")
-                unit_type = extracted.get("unit_type", "unit")
-
-                customer_data, product_data_list = fetch_data_from_mongo(customer_name, product_names)
-
-                if isinstance(customer_data, dict) and "match_customer_names" in customer_data:
-                    st.session_state.pending_customers = customer_data["match_customer_names"]
-                    bot_response = "👥 I found multiple matching customer names. Please select the correct one."
-                elif customer_data is None:
-                    bot_response = "⚠️ Customer not found in the database. Please check the name or add the customer first."
-                else:
-                    pdf_path, _, items = create_invoice(customer_data, product_data_list, quantities, unit_type)
-                    item_list = "\n".join([f"{i['name']} x{i['qty']} @ ₹{i['rate']} = ₹{i['total']}" for i in items])
-                    bot_response = f"🧾 *Invoice for {customer_data['Name']}*:\n\n{item_list}\n\n📄 [Download PDF]({pdf_path})"
-
-        except Exception as e:
-            bot_response = f"❌ Error: {str(e)}"
-
-    st.session_state.chat_history.append(("bot", bot_response))
-
 # ========== Chat History Display ==========
 for role, msg in st.session_state.chat_history:
     with st.chat_message("user" if role == "user" else "assistant"):

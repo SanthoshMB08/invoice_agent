@@ -23,8 +23,8 @@ def generate_invoice_pdf(customer_data, items):
 
     # Customer Info
     c.drawString(50, height - 140, f"Customer Name: {customer_data.get('Name')}")
-    c.drawString(50, height - 160, f"Phone: {customer_data.get('Phone', 'N/A')}")
-    c.drawString(50, height - 180, f"Email: {customer_data.get('Email', 'N/A')}")
+    c.drawString(50, height - 160, f"Phone: {customer_data.get('Number', 'N/A')}")
+    c.drawString(50, height - 180, f"Address: {customer_data.get('Address', 'N/A')}")
 
     # Table headers
     c.setFont("Helvetica-Bold", 12)
