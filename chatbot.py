@@ -54,7 +54,6 @@ Instructions:
   "unit_type": "strip"
 }}
 Respond ONLY with JSON.
-User Input:
 \"\"\"{user_text}\"\"\"
 """
 
